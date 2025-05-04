@@ -57,4 +57,4 @@ The project's commit history is structured to document each feature as a separat
 * **Initial Dashboard Stats:** Ensuring the dashboard statistics displayed `0` on the initial load before data fetching was a specific requirement addressed for a cleaner user experience.
 * **Patient Details Card Styling:** Implementing the patient details card without background blur and ensuring it appeared in the center of the screen required specific CSS adjustments and considerations for different screen sizes.
 
-This README provides a comprehensive overview of the MedTrack Patient Management System, including setup, usage, commit history, and development challenges, with a specific focus on the challenges related to using PGlite. Remember to replace `<repository-url>` with the actual URL of your Git repository.
+
