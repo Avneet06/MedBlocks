@@ -1,0 +1,119 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --primary: 210 90% 52%;
+    --secondary: 187 100% 38%;
+    --accent: 326 100% 70%;
+    --success: 142 72% 50%;
+    --warning: 36 100% 50%;
+    --error: 0 91% 63%;
+    --background: 220 20% 98%;
+    --foreground: 220 20% 20%;
+  }
+
+  html {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-lg shadow-md overflow-hidden transition-shadow duration-300 hover:shadow-lg;
+  }
+
+  .btn {
+    @apply px-4 py-2 rounded-md font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-opacity-50;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-white focus:ring-primary hover:bg-primary/90;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary text-white focus:ring-secondary hover:bg-secondary/90;
+  }
+
+  .btn-outline {
+    @apply border border-gray-300 bg-transparent focus:ring-gray-300 hover:bg-gray-50;
+  }
+
+  .input {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+}
+
+@layer utilities {
+  .bg-primary {
+    @apply bg-[hsl(var(--primary))];
+  }
+
+  .bg-secondary {
+    @apply bg-[hsl(var(--secondary))];
+  }
+
+  .bg-accent {
+    @apply bg-[hsl(var(--accent))];
+  }
+
+  .bg-success {
+    @apply bg-[hsl(var(--success))];
+  }
+
+  .bg-warning {
+    @apply bg-[hsl(var(--warning))];
+  }
+
+  .bg-error {
+    @apply bg-[hsl(var(--error))];
+  }
+
+  .bg-background {
+    @apply bg-[hsl(var(--background))];
+  }
+
+  .text-primary {
+    @apply text-[hsl(var(--primary))];
+  }
+
+  .text-secondary {
+    @apply text-[hsl(var(--secondary))];
+  }
+
+  .text-foreground {
+    @apply text-[hsl(var(--foreground))];
+  }
+
+  .border-primary {
+    @apply border-[hsl(var(--primary))];
+  }
+
+  .ring-primary {
+    @apply ring-[hsl(var(--primary))];
+  }
+}
