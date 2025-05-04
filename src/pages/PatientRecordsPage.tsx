@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Search, ChevronLeft, ChevronRight, Eye, UserPlus } from 'lucide-react';
+import { Users, Search, ChevronLeft, ChevronRight, Eye, UserPlus, X } from 'lucide-react';
 import { useDatabase, Patient } from '../lib/DatabaseContext';
 import { format } from 'date-fns';
 
@@ -13,7 +13,9 @@ const PatientRecordsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [isDetailsCardOpen, setIsDetailsCardOpen] = useState(false);
+
   useEffect(() => {
     if (initialized) {
       const fetchPatients = async () => {
@@ -27,15 +29,15 @@ const PatientRecordsPage: React.FC = () => {
           setLoading(false);
         }
       };
-      
+
       fetchPatients();
-      
+
       //  polling to refresh data (useful for multi-tab scenarios)
       const interval = setInterval(fetchPatients, 5000);
       return () => clearInterval(interval);
     }
   }, [getPatients, initialized]);
-  
+
   useEffect(() => {
     if (searchQuery.trim() === '') {
       setFilteredPatients(patients);
@@ -45,7 +47,7 @@ const PatientRecordsPage: React.FC = () => {
         const fullName = `${patient.first_name} ${patient.last_name}`.toLowerCase();
         const email = (patient.email || '').toLowerCase();
         const phone = (patient.phone || '').toLowerCase();
-        
+
         return (
           fullName.includes(lowercaseQuery) ||
           email.includes(lowercaseQuery) ||
@@ -56,23 +58,33 @@ const PatientRecordsPage: React.FC = () => {
     }
     setCurrentPage(1);
   }, [searchQuery, patients]);
-  
+
   // Pagination
   const totalPages = Math.ceil(filteredPatients.length / rowsPerPage);
   const startIndex = (currentPage - 1) * rowsPerPage;
   const endIndex = startIndex + rowsPerPage;
   const currentPatients = filteredPatients.slice(startIndex, endIndex);
-  
+
   const handlePreviousPage = () => {
     if (currentPage > 1) {
       setCurrentPage(currentPage - 1);
     }
   };
-  
+
   const handleNextPage = () => {
     if (currentPage < totalPages) {
       setCurrentPage(currentPage + 1);
     }
+  };
+
+  const openDetailsCard = (patient: Patient) => {
+    setSelectedPatient(patient);
+    setIsDetailsCardOpen(true);
+  };
+
+  const closeDetailsCard = () => {
+    setSelectedPatient(null);
+    setIsDetailsCardOpen(false);
   };
 
   return (
@@ -80,14 +92,53 @@ const PatientRecordsPage: React.FC = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="space-y-6"
+      className="space-y-6 relative" // Added relative for absolute positioning of the card
     >
+      {/* Patient Details Card */}
+      <AnimatePresence>
+        {isDetailsCardOpen && selectedPatient && (
+          <motion.div
+            key="patientDetails"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed top-0 left-0 w-full h-full flex items-center justify-center z-50" // Changed to fixed and removed backdrop-blur
+            onClick={closeDetailsCard} // Close on outside click
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }} // Optional: Add a subtle background overlay
+          >
+            <motion.div
+              className="bg-white rounded-md shadow-lg p-6 w-full max-w-md overflow-y-auto m-4" // Added m-4 for centering
+              onClick={(e) => e.stopPropagation()} // Prevent closing on card click
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">Patient Details</h2>
+                <button onClick={closeDetailsCard} className="p-1 rounded-full hover:bg-gray-100 text-gray-600">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              {/* Display Patient Details */}
+              <p><strong>Name:</strong> {selectedPatient.first_name} {selectedPatient.last_name}</p>
+              <p><strong>Gender:</strong> {selectedPatient.gender}</p>
+              <p><strong>Date of Birth:</strong> {format(new Date(selectedPatient.date_of_birth), 'MMM d, yyyy')}</p>
+              {selectedPatient.email && <p><strong>Email:</strong> {selectedPatient.email}</p>}
+              {selectedPatient.phone && <p><strong>Phone:</strong> {selectedPatient.phone}</p>}
+              {selectedPatient.address && <p><strong>Address:</strong> {selectedPatient.address}</p>}
+              {selectedPatient.blood_group && <p><strong>Blood Group:</strong> {selectedPatient.blood_group}</p>}
+              {selectedPatient.emergency_contact && <p><strong>Emergency Contact:</strong> {selectedPatient.emergency_contact}</p>}
+              {selectedPatient.medical_history && <p><strong>Medical History:</strong> {selectedPatient.medical_history}</p>}
+              <p><strong>Registered On:</strong> {format(new Date(selectedPatient.created_at), 'MMM d, yyyy h:mm a')}</p>
+              {/* Add more details as needed */}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center">
           <Users className="h-6 w-6 mr-2 text-primary" />
           <h1 className="text-2xl font-bold">Patient Records</h1>
         </div>
-        
+
         <div className="flex space-x-2">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -101,14 +152,14 @@ const PatientRecordsPage: React.FC = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          
+
           <Link to="/register" className="btn btn-primary inline-flex items-center">
             <UserPlus className="h-4 w-4 mr-2" />
             <span className="hidden sm:inline">Register</span>
           </Link>
         </div>
       </div>
-      
+
       <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -150,10 +201,10 @@ const PatientRecordsPage: React.FC = () => {
                     if (months < 0 || (months === 0 && today.getDate() < birthDate.getDate())) {
                       age--;
                     }
-                    
+
                     // Format date
                     const registeredDate = new Date(patient.created_at);
-                    
+
                     return (
                       <motion.tr
                         key={patient.id}
@@ -176,6 +227,7 @@ const PatientRecordsPage: React.FC = () => {
                           <button
                             className="p-1 rounded-full hover:bg-gray-100 text-gray-600"
                             aria-label="View patient details"
+                            onClick={() => openDetailsCard(patient)}
                           >
                             <Eye className="h-4 w-4" />
                           </button>
@@ -214,7 +266,7 @@ const PatientRecordsPage: React.FC = () => {
             </tbody>
           </table>
         </div>
-        
+
         {/* Pagination */}
         {filteredPatients.length > 0 && (
           <div className="px-4 py-3 flex items-center justify-between border-t border-gray-200">
@@ -233,7 +285,7 @@ const PatientRecordsPage: React.FC = () => {
                 <option value={50}>50</option>
               </select>
             </div>
-            
+
             <div className="text-sm text-gray-700">
               {filteredPatients.length === 0 ? (
                 '0-0 of 0'
@@ -243,7 +295,7 @@ const PatientRecordsPage: React.FC = () => {
                 </>
               )}
             </div>
-            
+
             <div className="flex">
               <button
                 onClick={handlePreviousPage}
