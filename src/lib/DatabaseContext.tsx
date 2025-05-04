@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { PGlite } from '@electric-sql/pglite';  
-
+import { PGlite } from '@electric-sql/pglite';
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS patients (
@@ -22,19 +21,6 @@ CREATE INDEX IF NOT EXISTS idx_patients_gender ON patients(gender);
 CREATE INDEX IF NOT EXISTS idx_patients_date_of_birth ON patients(date_of_birth);
 CREATE INDEX IF NOT EXISTS idx_patients_created_at ON patients(created_at);
 `;
-
-
-
-interface DatabaseContextType {
-  db: any;
-  initialized: boolean;
-  error: Error | null;
-  executeQuery: (sql: string, params?: any[]) => Promise<any>;
-  getPatients: () => Promise<Patient[]>;
-  addPatient: (patient: Omit<Patient, 'id' | 'created_at'>) => Promise<number>;
-  getPatientStats: () => Promise<PatientStats>;
-}
-
 
 export interface Patient {
   id: number;
@@ -58,9 +44,20 @@ export interface PatientStats {
   femaleCount: number;
 }
 
+interface DatabaseContextType {
+  db: any;
+  initialized: boolean;
+  error: Error | null;
+  executeQuery: (sql: string, params?: any[]) => Promise<any>;
+  getPatients: () => Promise<Patient[]>;
+  addPatient: (patient: Omit<Patient, 'id' | 'created_at'>) => Promise<number>;
+  getPatientStats: () => Promise<PatientStats>;
+}
+
+// Create BroadcastChannel once and reuse
+const broadcast = new BroadcastChannel('patients_channel');
 
 const DatabaseContext = createContext<DatabaseContextType | null>(null);
-
 
 export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [db, setDb] = useState<any>(null);
@@ -70,10 +67,9 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     const initializeDatabase = async () => {
       try {
-    
         const dbInstance = await PGlite.create();
-        await dbInstance.exec(SCHEMA); 
-  
+        await dbInstance.exec(SCHEMA);
+
         setDb(dbInstance);
         setInitialized(true);
       } catch (err) {
@@ -81,10 +77,9 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setError(err instanceof Error ? err : new Error('Unknown database error'));
       }
     };
-  
+
     initializeDatabase();
   }, []);
-
 
   const executeQuery = async (sql: string, params: any[] = []) => {
     if (!db) throw new Error('Database not initialized');
@@ -96,14 +91,14 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  // Get all patients
   const getPatients = async (): Promise<Patient[]> => {
     const result = await executeQuery('SELECT * FROM patients ORDER BY created_at DESC');
     return result.rows || [];
   };
 
- 
-  const addPatient = async (patientData: Omit<Patient, 'id' | 'created_at'>): Promise<number> => {
+  const addPatient = async (
+    patientData: Omit<Patient, 'id' | 'created_at'>
+  ): Promise<number> => {
     const now = new Date().toISOString();
 
     const sql = `
@@ -137,17 +132,20 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       now,
     ];
 
-  
-
     try {
       const result = await executeQuery(sql, values);
-      return result.rows[0]?.id;
+      const newId = result.rows[0]?.id;
+
+      // Broadcast event to other tabs
+      broadcast.postMessage({ type: 'patient-added', id: newId });
+
+      return newId;
     } catch (error) {
-      console.error("Error in addPatient:", error);
+      console.error('Error in addPatient:', error);
       throw error;
     }
   };
-  
+
   const getPatientStats = async (): Promise<PatientStats> => {
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -155,15 +153,15 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const totalResult = await executeQuery('SELECT COUNT(*) as count FROM patients');
     const newResult = await executeQuery(
-      'SELECT COUNT(*) as count FROM patients WHERE created_at >= $1', 
+      'SELECT COUNT(*) as count FROM patients WHERE created_at >= $1',
       [oneWeekAgoStr]
     );
     const maleResult = await executeQuery(
-      'SELECT COUNT(*) as count FROM patients WHERE gender = $1', 
+      'SELECT COUNT(*) as count FROM patients WHERE gender = $1',
       ['Male']
     );
     const femaleResult = await executeQuery(
-      'SELECT COUNT(*) as count FROM patients WHERE gender = $1', 
+      'SELECT COUNT(*) as count FROM patients WHERE gender = $1',
       ['Female']
     );
 
@@ -174,6 +172,23 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       femaleCount: femaleResult.rows[0]?.count || 0,
     };
   };
+
+  // Listen for patient-added events from other tabs
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'patient-added') {
+        console.log('New patient added in another tab. ID:', event.data.id);
+        // Optionally trigger a refetch here using context or callback
+      }
+    };
+
+    broadcast.addEventListener('message', handleMessage);
+
+    return () => {
+      broadcast.removeEventListener('message', handleMessage);
+      // We do NOT call broadcast.close() here to keep the channel open
+    };
+  }, []);
 
   return (
     <DatabaseContext.Provider
@@ -191,7 +206,6 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     </DatabaseContext.Provider>
   );
 };
-
 
 export const useDatabase = () => {
   const context = useContext(DatabaseContext);
